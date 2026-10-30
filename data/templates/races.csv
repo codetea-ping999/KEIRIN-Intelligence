@@ -1,0 +1,2 @@
+race_id,race_date,venue,race_number,grade,betting_cutoff_at,source,observed_at,entered_at
+EXAMPLE-0001,2026-11-03,架空バンク,11,F1,2026-11-03T16:25:00+09:00,架空サンプル（実データではありません）,2026-11-02T18:00:00+09:00,2026-11-02T19:00:00+09:00

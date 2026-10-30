@@ -1,0 +1,8 @@
+race_id,car,name,rider_class,prefecture,score,style,line_group,line_pos
+EXAMPLE-0001,1,架空 一郎,S1,東京,105.20,追,1,2
+EXAMPLE-0001,2,架空 二郎,S2,大阪,98.10,逃,2,1
+EXAMPLE-0001,3,架空 三郎,S1,福岡,101.50,両,3,1
+EXAMPLE-0001,4,架空 四郎,S1,千葉,103.80,逃,1,1
+EXAMPLE-0001,5,架空 五郎,S2,大阪,95.40,追,2,2
+EXAMPLE-0001,6,架空 六郎,A1,東京,92.70,追,1,3
+EXAMPLE-0001,7,架空 七郎,S2,奈良,94.30,追,2,3

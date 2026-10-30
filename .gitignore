@@ -26,3 +26,6 @@ data/private/
 coverage.xml
 .coverage
 .DS_Store
+
+# Hand-entered real race data stays local unless you decide otherwise
+data/real/
