@@ -55,7 +55,7 @@ keirin --data data/templates note EXAMPLE-0001   # fictional example card
 
 **Gate 0:** Rights/supplier terms -> **Gate 1:** Licensed ETL + as-of feature store -> **Gate 2:** walk-forward baseline/LightGBM -> **Gate 3:** odds/exacta evaluation -> **Gate 4:** forward shadow ledger and human-reviewed note reports -> **Gate 5:** commercial go/no-go.
 
-See [docs/BACKLOG.md](docs/BACKLOG.md), [docs/DATA_LICENSING.md](docs/DATA_LICENSING.md) and [docs/BACKTEST_POLICY.md](docs/BACKTEST_POLICY.md).
+日本語のやさしい説明: [docs/ROADMAP_JA.md](docs/ROADMAP_JA.md). See [docs/BACKLOG.md](docs/BACKLOG.md), [docs/DATA_LICENSING.md](docs/DATA_LICENSING.md) and [docs/BACKTEST_POLICY.md](docs/BACKTEST_POLICY.md).
 
 ## Security and copyright
 
