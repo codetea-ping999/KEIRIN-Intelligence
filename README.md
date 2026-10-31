@@ -3,7 +3,7 @@
 **Private research prototype for a data-rights-aware keirin forecasting and note publication workflow.**
 
 > [!IMPORTANT]
-> **NOT LIVE, NOT PRODUCTION-READY, NOT A PREDICTION SERVICE.** The demo uses **synthetic riders / synthetic ratings / simulated odds**. No real race data, scraping, automatic wagering, or automatic note publishing is included. Commercial ingestion, training and sale remain blocked until licensing/permissions and legal review are complete.
+> **NOT LIVE, NOT PRODUCTION-READY.** Real race cards enter only by **hand entry** into local CSVs (`data/real/`, git-ignored); the repo bundles only fictional examples. No scraping, automatic wagering, or automatic note publishing is included. Commercial ingestion, training and sale remain blocked until licensing/permissions and legal review are complete.
 
 ## Goals
 
@@ -25,11 +25,19 @@ python -m pytest -q
 
 Alternative without installing: `PYTHONPATH=src python -m keirin_intelligence.demo`.
 
+## Real-data workflow (v0.2)
+
+Hand-enter public race cards -> `keirin predict` -> `keirin freeze` (hash-chained, pre-cutoff) -> `keirin note` (Japanese draft with disclaimers) -> enter results -> `keirin evaluate` (monthly walk-forward vs baselines). See [docs/REAL_DATA_WORKFLOW.md](docs/REAL_DATA_WORKFLOW.md) and [docs/NOTE_PUBLISHING.md](docs/NOTE_PUBLISHING.md).
+
+```bash
+keirin --data data/templates note EXAMPLE-0001   # fictional example card
+```
+
 ## Current deliverables
 
 - `docs/DESIGN.md` — business/MVP model design, KPI, roadmap (initial detailed design).
 - `db/schema.sql` — PostgreSQL 15+ **blueprint**, not yet connected to demo.
-- `src/keirin_intelligence/` — deterministic synthetic example, probability baseline and governance checks.
+- `src/keirin_intelligence/` — synthetic demo, M0 baseline, governance checks, and v0.2 modules: `racecard` (CSV input), `model` (M1 line-aware sequential logit), `evaluation` (walk-forward), `ledger` (frozen shadow record), `note` (draft renderer), `cli`.
 - `tests/` — tests for probability normalization, timestamp leak guards, publication/data-rights gating.
 - `.github/workflows/ci.yml` — pytest and Ruff validation.
 - `docs/BACKLOG.md` — issue-ready work packages and acceptance criteria.
@@ -47,7 +55,7 @@ Alternative without installing: `PYTHONPATH=src python -m keirin_intelligence.de
 
 **Gate 0:** Rights/supplier terms -> **Gate 1:** Licensed ETL + as-of feature store -> **Gate 2:** walk-forward baseline/LightGBM -> **Gate 3:** odds/exacta evaluation -> **Gate 4:** forward shadow ledger and human-reviewed note reports -> **Gate 5:** commercial go/no-go.
 
-See [docs/BACKLOG.md](docs/BACKLOG.md), [docs/DATA_LICENSING.md](docs/DATA_LICENSING.md) and [docs/BACKTEST_POLICY.md](docs/BACKTEST_POLICY.md).
+日本語のやさしい説明: [docs/ROADMAP_JA.md](docs/ROADMAP_JA.md). See [docs/BACKLOG.md](docs/BACKLOG.md), [docs/DATA_LICENSING.md](docs/DATA_LICENSING.md) and [docs/BACKTEST_POLICY.md](docs/BACKTEST_POLICY.md).
 
 ## Security and copyright
 
