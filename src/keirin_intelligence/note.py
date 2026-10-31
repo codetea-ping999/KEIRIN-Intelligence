@@ -8,7 +8,7 @@ from datetime import timedelta, timezone
 
 from keirin_intelligence.evaluation import TRIFECTA_TOP_N
 from keirin_intelligence.model import RacePrediction
-from keirin_intelligence.racecard import RaceCard
+from keirin_intelligence.racecard import RaceCard, Velodrome
 
 JST = timezone(timedelta(hours=9))
 MARKS = ("◎", "○", "▲", "△", "×")
@@ -31,13 +31,46 @@ def _pct(p: float) -> str:
     return f"{p * 100:.1f}%"
 
 
-def _comment(card: RaceCard, pred: RacePrediction) -> list[str]:
+def _bank_comment(card: RaceCard, venue: Velodrome | None) -> list[str]:
+    """Venue / weather remarks. Wording stays hedged: the sources disagree on several effects."""
+    out = []
+    if venue is not None and venue.straight_m is not None:
+        if venue.straight_m < 45:
+            tilt = "先行・捲りが残りやすい短めの直線"
+        elif venue.straight_m > 60:
+            tilt = "番手・追い込みが届きやすい長めの直線"
+        else:
+            tilt = "標準的な直線"
+        place = "屋内" if venue.indoor else "屋外"
+        out.append(
+            f"- バンク: {venue.name}（{place}・{venue.lap_m:g}m）はみなし直線 {venue.straight_m:.1f}m。"
+            f"{tilt}とされます。"
+        )
+    if card.back_wind_mps is not None and abs(card.back_wind_mps) >= 5:
+        if card.back_wind_mps > 0:
+            out.append(
+                f"- 風: バック向かい風 約{card.back_wind_mps:.0f}m/s。"
+                "先行が消耗し、後方に展開が向きやすいといわれます。"
+            )
+        else:
+            out.append(
+                f"- 風: バック追い風 約{-card.back_wind_mps:.0f}m/s。先行が粘りやすい可能性があります。"
+            )
+    if card.wet:
+        out.append("- 路面: 濡れています。無理な仕掛けが減るとも荒れるともいわれ、見方が分かれます。")
+    return out
+
+
+def _comment(
+    card: RaceCard, pred: RacePrediction, venue: Velodrome | None = None
+) -> list[str]:
     by_car = {e.car_number: e for e in card.entries}
     lines = card.lines()
     multi = [line for line in lines if len(line) >= 2] or lines
     strongest = max(multi, key=lambda line: sum(e.score for e in line) / len(line))
     honmei = by_car[pred.ranked()[0]]
     out = [
+        *_bank_comment(card, venue),
         f"- 並び予想は **{card.formation()}**。連携ラインで平均得点が最も高いのは "
         f"{'-'.join(str(e.car_number) for e in strongest)} のラインです。",
     ]
@@ -62,6 +95,7 @@ def render_note(
     *,
     track_record: dict[str, int] | None = None,
     model_label: str = "M1 line-aware logit",
+    venue: Velodrome | None = None,
 ) -> str:
     by_car = {e.car_number: e for e in card.entries}
     ranked = pred.ranked()
@@ -109,7 +143,7 @@ def render_note(
         "",
         "## 展開メモ",
         "",
-        *_comment(card, pred),
+        *_comment(card, pred, venue),
         "",
         "## 参考の組み合わせ",
         "",

@@ -18,7 +18,7 @@
 
 `data/real/`（git管理外）に以下の CSV を置きます。書式は `data/templates/` を参照。
 
-- `races.csv` — 1レース1行。`betting_cutoff_at` / `observed_at`（出走表を見た時刻）/ `entered_at`（入力した時刻）は `+09:00` 付きで記入。
+- `races.csv` — 1レース1行。`venue` は競輪場名（`data/reference/velodromes.csv` の表記、例: 立川）。`betting_cutoff_at` / `observed_at`（出走表を見た時刻）/ `entered_at`（入力した時刻）は `+09:00` 付きで記入。任意列: `back_wind_mps`（バック向かい風を＋、追い風を−で m/s）、`wet`（路面が濡れていれば1、乾いていれば0）。
 - `entries.csv` — 1選手1行。`style` は `逃` / `両` / `追`。`line_group` は同じラインに同じ番号、`line_pos` は先頭=1, 番手=2…。単騎は1人だけのグループ。
 - `results.csv` — 結果。`finish` に着順、失格・落車などは空欄。
 - `ledger.jsonl` — 事前固定した予想の記録（自動生成。手で編集すると改ざん検知で止まります）。
@@ -58,5 +58,7 @@ keirin --data data/real fit --before 2026-12-01     # 指定日より前の結�
 ## 5. 次の改善候補
 
 - オッズ（締切前時点）の手入力欄と期待値計算
-- バンク特性（周長・直線長）、天候、近況着順の特徴量追加
+- 近況（直近4か月の着順・決まり手）の特徴量追加
+
+バンク（みなし直線）・風・雨・地元・級の特徴量は追加済みです。根拠は [MUSE_KNOWLEDGE.md](MUSE_KNOWLEDGE.md) を参照。
 - 入力用スプレッドシートのテンプレート化

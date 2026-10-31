@@ -33,7 +33,7 @@ def synthetic_card(rng: random.Random, race_id: str, day: date) -> RaceCard:
 
 
 def sample_result(rng: random.Random, card: RaceCard, model: LineAwareModel) -> RaceResult:
-    base = model._utilities(race_features(card))
+    base = model._utilities(race_features(card, model.venues))
     front = _follows(card)
     remaining, order, prev = set(base), [], None
     while remaining:

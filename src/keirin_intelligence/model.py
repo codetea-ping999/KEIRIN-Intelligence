@@ -16,9 +16,12 @@ from dataclasses import dataclass
 from itertools import permutations
 from statistics import fmean, pstdev
 
-from keirin_intelligence.racecard import RaceCard, RaceResult
+from keirin_intelligence.racecard import RaceCard, RaceResult, Velodrome
 
-FEATURES = ("score_z", "line_strength_z", "leader", "bante", "third", "solo", "nige")
+FEATURES = (
+    "score_z", "line_strength_z", "leader", "bante", "third", "solo", "nige",
+    "bank_nige", "bank_chaser", "wind_nige", "wind_chaser", "wet_nige", "local", "nige_lowclass",
+)
 PARAMS = (*FEATURES, "follow")
 
 PRIOR_WEIGHTS: dict[str, float] = {
@@ -29,12 +32,32 @@ PRIOR_WEIGHTS: dict[str, float] = {
     "third": -0.2,
     "solo": -0.35,
     "nige": 0.0,
+    # Venue / weather / class terms start small: the source boards disagree on several of
+    # them (rain, cant), so the data must earn any larger weight.
+    "bank_nige": 0.15,  # short minashi straight (<50m) favours front-runners
+    "bank_chaser": 0.10,  # long straight (>50m) lets chasers (追) finish
+    "wind_nige": -0.15,  # back-straight headwind tires the front-runner (per 5 m/s)
+    "wind_chaser": 0.10,
+    "wet_nige": 0.0,
+    "local": 0.10,  # home-prefecture rider
+    "nige_lowclass": 0.10,  # front-running survives more often in A-class
     "follow": 0.7,
 }
 SCORE_ONLY_WEIGHTS: dict[str, float] = {name: 0.0 for name in PARAMS} | {"score_z": 0.6}
 
 
-def race_features(card: RaceCard) -> dict[int, dict[str, float]]:
+def _bare(prefecture: str) -> str:
+    return prefecture if prefecture == "北海道" else prefecture.rstrip("都府県")
+
+
+def race_features(
+    card: RaceCard, venues: dict[str, Velodrome] | None = None
+) -> dict[int, dict[str, float]]:
+    venue = (venues or {}).get(card.venue)
+    straight = venue.straight_m if venue else None
+    bank = (50.0 - straight) / 10.0 if straight is not None else 0.0
+    wind = (card.back_wind_mps or 0.0) / 5.0
+    wet = 1.0 if card.wet else 0.0
     scores = [e.score for e in card.entries]
     mean, sd = fmean(scores), max(pstdev(scores), 1.0)
     line_mean = {
@@ -52,6 +75,13 @@ def race_features(card: RaceCard) -> dict[int, dict[str, float]]:
             "third": float(e.line_pos >= 3),
             "solo": float(size == 1),
             "nige": float(e.style == "逃"),
+            "bank_nige": bank * float(e.style == "逃"),
+            "bank_chaser": -bank * float(e.style == "追"),
+            "wind_nige": wind * float(e.style == "逃"),
+            "wind_chaser": wind * float(e.style == "追"),
+            "wet_nige": wet * float(e.style == "逃"),
+            "local": float(venue is not None and _bare(e.prefecture) == _bare(venue.prefecture)),
+            "nige_lowclass": float(e.style == "逃" and e.rider_class.startswith("A")),
         }
     return out
 
@@ -79,8 +109,13 @@ class RacePrediction:
 
 
 class LineAwareModel:
-    def __init__(self, weights: dict[str, float] | None = None) -> None:
-        self.weights = dict(PRIOR_WEIGHTS if weights is None else weights)
+    def __init__(
+        self, weights: dict[str, float] | None = None, venues: dict[str, Velodrome] | None = None
+    ) -> None:
+        # Weights saved before a feature existed load with that feature switched off.
+        given = PRIOR_WEIGHTS if weights is None else weights
+        self.weights = {name: 0.0 for name in PARAMS} | given
+        self.venues = venues
 
     def _utilities(self, feats: dict[int, dict[str, float]]) -> dict[int, float]:
         return {c: sum(self.weights[k] * x[k] for k in FEATURES) for c, x in feats.items()}
@@ -97,7 +132,7 @@ class LineAwareModel:
         return {c: v / total for c, v in exp.items()}
 
     def predict(self, card: RaceCard) -> RacePrediction:
-        base = self._utilities(race_features(card))
+        base = self._utilities(race_features(card, self.venues))
         front = _follows(card)
         cars = sorted(base)
         win = self._stage(base, front, cars, None)
@@ -117,7 +152,7 @@ class LineAwareModel:
         return RacePrediction(card.race_id, win, top2, top3, exacta, trifecta)
 
     def log_likelihood(self, card: RaceCard, result: RaceResult, depth: int = 3) -> float:
-        base = self._utilities(race_features(card))
+        base = self._utilities(race_features(card, self.venues))
         front = _follows(card)
         remaining = set(base)
         prev, total = None, 0.0
@@ -145,7 +180,7 @@ class LineAwareModel:
         # Each stage's candidate vectors are fixed by the card, so build them once.
         stages: list[tuple[list[tuple[float, ...]], int]] = []
         for card, result in data:
-            feats, front = race_features(card), _follows(card)
+            feats, front = race_features(card, self.venues), _follows(card)
             remaining, prev = sorted(feats), None
             for car in result.order[:depth]:
                 if car not in remaining:
@@ -167,7 +202,7 @@ class LineAwareModel:
                     expected = sum(e * x[d] for e, x in zip(exp, xs, strict=True)) / total
                     grad[d] += (xs[chosen][d] - expected) / n
             w = [w[d] + lr * grad[d] for d in dims]
-        return LineAwareModel(dict(zip(PARAMS, w, strict=True)))
+        return LineAwareModel(dict(zip(PARAMS, w, strict=True)), self.venues)
 
 
 def uniform_prediction(card: RaceCard) -> RacePrediction:

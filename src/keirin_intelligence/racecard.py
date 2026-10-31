@@ -50,6 +50,10 @@ class RaceCard:
     observed_at: datetime
     entered_at: datetime
     entries: tuple[CardEntry, ...]
+    # Optional pre-race weather, hand-entered. back_wind_mps: + = headwind on the back
+    # straight, - = tailwind, None = not entered. wet: track visibly wet.
+    back_wind_mps: float | None = None
+    wet: bool | None = None
 
     def __post_init__(self) -> None:
         for name in ("betting_cutoff_at", "observed_at", "entered_at"):
@@ -128,6 +132,8 @@ def load_cards(data_dir: Path) -> dict[str, RaceCard]:
             observed_at=_parse_dt(row["observed_at"], "observed_at"),
             entered_at=_parse_dt(row["entered_at"], "entered_at"),
             entries=tuple(sorted(entries_by_race.pop(race_id, []), key=lambda e: e.car_number)),
+            back_wind_mps=float(row["back_wind_mps"]) if row.get("back_wind_mps") else None,
+            wet={"1": True, "0": False}.get(row.get("wet", "")),
         )
     if entries_by_race:
         raise ValueError(f"entries without races.csv row: {sorted(entries_by_race)}")
@@ -145,4 +151,37 @@ def load_results(data_dir: Path) -> dict[str, RaceResult]:
     return {
         race_id: RaceResult(race_id, tuple(car for _, car in sorted(rows)))
         for race_id, rows in finishes.items()
+    }
+
+
+@dataclass(frozen=True)
+class Velodrome:
+    name: str
+    prefecture: str
+    lap_m: float
+    straight_m: float | None
+    cant_deg: float | None
+    indoor: bool
+
+
+def default_velodromes() -> dict[str, Velodrome]:
+    """The bundled 43-venue table (works from a source checkout / editable install)."""
+    return load_velodromes(Path(__file__).resolve().parents[2] / "data" / "reference" / "velodromes.csv")
+
+
+def load_velodromes(path: Path) -> dict[str, Velodrome]:
+    """Venue facts (data/reference/velodromes.csv); blank straight/cant stay None."""
+    def num(value: str) -> float | None:
+        return float(value) if value else None
+
+    return {
+        row["venue"]: Velodrome(
+            name=row["venue"],
+            prefecture=row["prefecture"],
+            lap_m=float(row["lap_m"]),
+            straight_m=num(row["straight_m"]),
+            cant_deg=num(row["cant_deg"]),
+            indoor=row["indoor"] == "1",
+        )
+        for row in _read(path)
     }

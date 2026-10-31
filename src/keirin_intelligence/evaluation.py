@@ -73,6 +73,7 @@ def walk_forward(
     *,
     min_train_races: int = 100,
     fit_kwargs: dict | None = None,
+    venues: dict | None = None,
 ) -> list[Scoreboard]:
     """Evaluate M1 (refit monthly), M1 priors only, score-only and uniform baselines."""
     labelled = sorted(
@@ -82,18 +83,19 @@ def walk_forward(
     boards = {name: Scoreboard(name) for name in
               ("M1_walk_forward", "M1_prior_only", "score_only", "uniform")}
     fixed: dict[str, Callable[[RaceCard], RacePrediction]] = {
-        "M1_prior_only": LineAwareModel().predict,
-        "score_only": LineAwareModel(SCORE_ONLY_WEIGHTS).predict,
+        "M1_prior_only": LineAwareModel(venues=venues).predict,
+        "score_only": LineAwareModel(SCORE_ONLY_WEIGHTS, venues).predict,
         "uniform": uniform_prediction,
     }
-    model, fitted_for = LineAwareModel(), None
+    model, fitted_for = LineAwareModel(venues=venues), None
     for i, card in enumerate(labelled):
         month = (card.race_date.year, card.race_date.month)
         if month != fitted_for:
             history = [(c, results[c.race_id]) for c in labelled[:i]
                        if (c.race_date.year, c.race_date.month) < month]
-            model = (LineAwareModel().fit(history, **(fit_kwargs or {}))
-                     if len(history) >= min_train_races else LineAwareModel())
+            fresh = LineAwareModel(venues=venues)
+            model = (fresh.fit(history, **(fit_kwargs or {}))
+                     if len(history) >= min_train_races else fresh)
             fitted_for = month
         result = results[card.race_id]
         boards["M1_walk_forward"].add(model.predict(card), result)

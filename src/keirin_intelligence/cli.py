@@ -13,14 +13,14 @@ from keirin_intelligence import ledger
 from keirin_intelligence.evaluation import walk_forward
 from keirin_intelligence.model import LineAwareModel
 from keirin_intelligence.note import render_note
-from keirin_intelligence.racecard import load_cards, load_results
+from keirin_intelligence.racecard import default_velodromes, load_cards, load_results
 
 
 def _model(data_dir: Path, weights_path: Path | None) -> LineAwareModel:
     path = weights_path or data_dir / "weights.json"
     if path.exists():
-        return LineAwareModel(json.loads(path.read_text(encoding="utf-8")))
-    return LineAwareModel()
+        return LineAwareModel(json.loads(path.read_text(encoding="utf-8")), default_velodromes())
+    return LineAwareModel(venues=default_velodromes())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,7 +51,10 @@ def main(argv: list[str] | None = None) -> int:
             for car in pred.ranked():
                 print(f"{car}: win {pred.win[car]:.3f}  top3 {pred.top3[car]:.3f}")
         elif args.command == "note":
-            text = render_note(card, pred, track_record=ledger.track_record(ledger_path, results))
+            text = render_note(
+                card, pred, track_record=ledger.track_record(ledger_path, results),
+                venue=default_velodromes().get(card.venue),
+            )
             if args.out:
                 args.out.parent.mkdir(parents=True, exist_ok=True)
                 args.out.write_text(text, encoding="utf-8")
@@ -62,12 +65,14 @@ def main(argv: list[str] | None = None) -> int:
             row = ledger.freeze(ledger_path, card, pred, model.weights, datetime.now(UTC))
             print(f"frozen {args.race_id} sha256={row['sha256']}")
     elif args.command == "evaluate":
-        for board in walk_forward(cards, results, min_train_races=args.min_train):
+        for board in walk_forward(
+            cards, results, min_train_races=args.min_train, venues=default_velodromes()
+        ):
             print(json.dumps(board.summary(), ensure_ascii=False))
     elif args.command == "fit":
         data = [(cards[r], res) for r, res in results.items() if r in cards and res.order
                 and (args.before is None or cards[r].race_date.isoformat() < args.before)]
-        fitted = LineAwareModel().fit(data)
+        fitted = LineAwareModel(venues=default_velodromes()).fit(data)
         out = args.weights or args.data / "weights.json"
         out.write_text(json.dumps(fitted.weights, indent=2, ensure_ascii=False), encoding="utf-8")
         print(f"fitted on {len(data)} races -> {out}")
