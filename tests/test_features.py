@@ -7,7 +7,6 @@ from keirin_intelligence.features import AsOfStore, Snapshot
 from keirin_intelligence.governance import GateRejected
 from keirin_intelligence.rights import AuditLog, Purpose, RightsGate
 
-
 PAST_CUTOFF = datetime(2026, 11, 1, 7, 0, tzinfo=UTC)
 CUTOFF = datetime(2026, 11, 3, 7, 0, tzinfo=UTC)
 T = CUTOFF - timedelta(hours=2)  # prediction time
