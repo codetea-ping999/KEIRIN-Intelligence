@@ -36,7 +36,7 @@ keirin --data data/templates note EXAMPLE-0001   # fictional example card
 ## Current deliverables
 
 - `docs/DESIGN.md` — business/MVP model design, KPI, roadmap (initial detailed design).
-- `db/schema.sql` — PostgreSQL 15+ **blueprint**, not yet connected to demo.
+- `db/migrations/` — PostgreSQL 15+ migrations (`pip install -e ".[db]"` then `keirin-db upgrade`); column meanings in `docs/DATA_DICTIONARY.md`. Not yet connected to the demo.
 - `src/keirin_intelligence/` — synthetic demo, M0 baseline, governance checks, and v0.2 modules: `racecard` (CSV input), `model` (M1 line-aware sequential logit), `evaluation` (walk-forward), `ledger` (frozen shadow record), `note` (draft renderer), `cli`.
 - `tests/` — tests for probability normalization, timestamp leak guards, publication/data-rights gating.
 - `.github/workflows/ci.yml` — pytest and Ruff validation.
