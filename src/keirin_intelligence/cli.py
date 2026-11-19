@@ -6,10 +6,11 @@ Nothing here downloads data, places bets or posts to note.com.
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from keirin_intelligence import ledger
+from keirin_intelligence.backtest import backtest, load_win_odds
 from keirin_intelligence.evaluation import walk_forward
 from keirin_intelligence.model import LineAwareModel
 from keirin_intelligence.note import render_note
@@ -37,6 +38,12 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--min-train", type=int, default=100)
     fit = sub.add_parser("fit")
     fit.add_argument("--before", help="only use races dated before YYYY-MM-DD")
+    bt = sub.add_parser("backtest", help="chronological train/calibration/test backtest")
+    bt.add_argument("--train-end", required=True, type=date.fromisoformat,
+                    help="races before this date train the model")
+    bt.add_argument("--calib-end", required=True, type=date.fromisoformat,
+                    help="races from --train-end up to this date fit the calibration")
+    bt.add_argument("--odds", type=Path, help="odds.csv (default: <data>/odds.csv if present)")
     args = parser.parse_args(argv)
 
     cards = load_cards(args.data)
@@ -69,6 +76,16 @@ def main(argv: list[str] | None = None) -> int:
             cards, results, min_train_races=args.min_train, venues=default_velodromes()
         ):
             print(json.dumps(board.summary(), ensure_ascii=False))
+    elif args.command == "backtest":
+        odds_path = args.odds or args.data / "odds.csv"
+        odds = load_win_odds(odds_path, cards) if odds_path.exists() else None
+        try:
+            report = backtest(cards, results, train_end=args.train_end,
+                              calib_end=args.calib_end, odds=odds, venues=default_velodromes())
+        except ValueError as err:
+            print(f"cannot backtest: {err}", file=sys.stderr)
+            return 2
+        print(json.dumps(report, ensure_ascii=False, indent=2))
     elif args.command == "fit":
         data = [(cards[r], res) for r, res in results.items() if r in cards and res.order
                 and (args.before is None or cards[r].race_date.isoformat() < args.before)]
