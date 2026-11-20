@@ -31,3 +31,4 @@ coverage.xml
 data/real/
 data/audit/
 KILL_SWITCH
+data/store/
