@@ -13,11 +13,13 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10", "ruff>=0.7,<1"]
+db = ["psycopg[binary]>=3.2,<4"]
 ml = ["lightgbm>=4,<5", "scikit-learn>=1.5,<2", "numpy>=1.26,<3", "pandas>=2.2,<3"]
 
 [project.scripts]
 keirin-demo = "keirin_intelligence.demo:main"
 keirin = "keirin_intelligence.cli:main"
+keirin-db = "keirin_intelligence.migrate:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

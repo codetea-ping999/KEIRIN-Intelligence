@@ -1,0 +1,5 @@
+source_id,permission_status,agreement_reference,allowed_storage,allowed_training,allowed_derived_sales,reviewed_at,expires_at,revoked_at
+SYNTHETIC,unverified,,0,0,0,,,
+HAND_ENTRY_PUBLIC_RACECARD,unverified,,0,0,0,2026-11-19T00:00:00+09:00,,
+keirin.jp,unverified,,0,0,0,2026-11-06T00:00:00+09:00,,
+keirin.netkeiba.com,unverified,,0,0,0,2026-11-06T00:00:00+09:00,,

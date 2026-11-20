@@ -11,10 +11,13 @@ from pathlib import Path
 
 from keirin_intelligence import ledger
 from keirin_intelligence.backtest import backtest, load_win_odds
+from keirin_intelligence.etl import FileDropAdapter, Store, ingest
 from keirin_intelligence.evaluation import walk_forward
+from keirin_intelligence.governance import GateRejected
 from keirin_intelligence.model import LineAwareModel
 from keirin_intelligence.note import render_note
 from keirin_intelligence.racecard import default_velodromes, load_cards, load_results
+from keirin_intelligence.rights import AuditLog, Purpose, RightsGate, load_registry, reevaluate
 
 
 def _model(data_dir: Path, weights_path: Path | None) -> LineAwareModel:
@@ -44,7 +47,43 @@ def main(argv: list[str] | None = None) -> int:
     bt.add_argument("--calib-end", required=True, type=date.fromisoformat,
                     help="races from --train-end up to this date fit the calibration")
     bt.add_argument("--odds", type=Path, help="odds.csv (default: <data>/odds.csv if present)")
+    review = sub.add_parser("rights-review",
+                            help="list earlier commercial approvals that are no longer valid")
+    review.add_argument("--audit", type=Path, default=Path("data/audit/rights.jsonl"))
+    ing = sub.add_parser("ingest", help="ingest provider files through the rights gate")
+    ing.add_argument("files", type=Path, nargs="+", help="races.csv / entries.csv / results.csv")
+    ing.add_argument("--source", required=True, help="source_id in rights_registry.csv")
+    ing.add_argument("--contract", default="", help="agreement reference the files came under")
+    ing.add_argument("--observed-at", required=True, help="ISO time the provider published them")
+    ing.add_argument("--store", type=Path, default=Path("data/store"))
+    ing.add_argument("--research", action="store_true",
+                     help="non-commercial research use (allows unlicensed/synthetic input)")
     args = parser.parse_args(argv)
+
+    if args.command == "rights-review":
+        gate = RightsGate(load_registry(), AuditLog(args.audit))
+        stale = reevaluate(gate, datetime.now(UTC))
+        for row in stale:
+            print(json.dumps(row, ensure_ascii=False))
+        print(f"{len(stale)} approval(s) must be stopped" if stale else "no stale approvals")
+        return 1 if stale else 0
+    if args.command == "ingest":
+        now = datetime.now(UTC)
+        gate = RightsGate(load_registry(), AuditLog(Path("data/audit/rights.jsonl")),
+                          kill_switch_file=Path("KILL_SWITCH"))
+        try:
+            reports = ingest(
+                FileDropAdapter(args.source, args.contract, args.files,
+                                datetime.fromisoformat(args.observed_at)),
+                Store(args.store), gate, now=now,
+                purpose=Purpose.RESEARCH if args.research else Purpose.INGEST,
+            )
+        except GateRejected as err:
+            print(f"refused: {err}", file=sys.stderr)
+            return 2
+        for r in reports:
+            print(json.dumps(r.__dict__, ensure_ascii=False))
+        return 0
 
     cards = load_cards(args.data)
     results = load_results(args.data)
