@@ -1,0 +1,5 @@
+host,status,checked_on,evidence
+keirin.jp,blocked,2026-11-06,robots.txt refuses automated access (fetch tools stop at robots; a third-party scraper page also states keirin.jp does not allow automated reading). Do not automate.
+keirin.netkeiba.com,needs_permission,2026-11-06,robots.txt allows all (Disallow: empty) but 利用規約 第14条 bars reproduction/publication of obtained data beyond private use and 第15条 bars commercial use and preparation for it unless separately approved.
+www.oddspark.com,unreviewed,2026-11-06,robots.txt and 利用規約 could not be read from this environment; analysis pages mark some content as members-only. Review before any use.
+gamboo.jp,unreviewed,2026-11-06,robots.txt refused the fetch tool; 利用規約 not read. Review before any use.
