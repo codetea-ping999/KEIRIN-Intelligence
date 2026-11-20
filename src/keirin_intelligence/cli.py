@@ -14,6 +14,7 @@ from keirin_intelligence.evaluation import walk_forward
 from keirin_intelligence.model import LineAwareModel
 from keirin_intelligence.note import render_note
 from keirin_intelligence.racecard import default_velodromes, load_cards, load_results
+from keirin_intelligence.rights import AuditLog, RightsGate, load_registry, reevaluate
 
 
 def _model(data_dir: Path, weights_path: Path | None) -> LineAwareModel:
@@ -37,7 +38,18 @@ def main(argv: list[str] | None = None) -> int:
     ev.add_argument("--min-train", type=int, default=100)
     fit = sub.add_parser("fit")
     fit.add_argument("--before", help="only use races dated before YYYY-MM-DD")
+    review = sub.add_parser("rights-review",
+                            help="list earlier commercial approvals that are no longer valid")
+    review.add_argument("--audit", type=Path, default=Path("data/audit/rights.jsonl"))
     args = parser.parse_args(argv)
+
+    if args.command == "rights-review":
+        gate = RightsGate(load_registry(), AuditLog(args.audit))
+        stale = reevaluate(gate, datetime.now(UTC))
+        for row in stale:
+            print(json.dumps(row, ensure_ascii=False))
+        print(f"{len(stale)} approval(s) must be stopped" if stale else "no stale approvals")
+        return 1 if stale else 0
 
     cards = load_cards(args.data)
     results = load_results(args.data)

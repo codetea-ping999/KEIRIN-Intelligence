@@ -29,3 +29,5 @@ coverage.xml
 
 # Hand-entered real race data stays local unless you decide otherwise
 data/real/
+data/audit/
+KILL_SWITCH
