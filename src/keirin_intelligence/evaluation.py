@@ -28,6 +28,7 @@ class Scoreboard:
     top1_win: int = 0
     top1_in_top3: int = 0
     exacta_top1: int = 0
+    exacta_races: int = 0
     trifecta_topn: int = 0
     trifecta_races: int = 0
     per_race: list[dict] = field(default_factory=list)
@@ -43,6 +44,7 @@ class Scoreboard:
         self.top1_in_top3 += favourite in result.order[:3]
         if len(result.order) >= 2 and pred.exacta:
             best_pair = max(pred.exacta, key=pred.exacta.get)
+            self.exacta_races += 1
             self.exacta_top1 += best_pair == tuple(result.order[:2])
         if len(result.order) >= 3 and pred.trifecta:
             self.trifecta_races += 1
@@ -60,9 +62,11 @@ class Scoreboard:
             "win_brier": round(self.brier / n, 4),
             "honmei_win_rate": round(self.top1_win / n, 4),
             "honmei_top3_rate": round(self.top1_in_top3 / n, 4),
-            "exacta_top1_hit": round(self.exacta_top1 / n, 4),
-            f"trifecta_top{TRIFECTA_TOP_N}_hit": round(
-                self.trifecta_topn / max(self.trifecta_races, 1), 4
+            # None = this model gives no joint distribution (not a 0% hit rate).
+            "exacta_top1_hit": (round(self.exacta_top1 / self.exacta_races, 4)
+                                if self.exacta_races else None),
+            f"trifecta_top{TRIFECTA_TOP_N}_hit": (
+                round(self.trifecta_topn / self.trifecta_races, 4) if self.trifecta_races else None
             ),
         }
 

@@ -131,7 +131,9 @@ def _entry(row: dict[str, str]) -> tuple[str, dict]:
 
 def _result(row: dict[str, str]) -> tuple[str, dict]:
     car = _int_range(row["car"], 1, 9, "car")
-    finish = int(row["finish"]) if row.get("finish") else 0
+    if "finish" not in row:
+        raise ValueError("finish column missing")
+    finish = int(row["finish"]) if row["finish"] else 0
     if finish < 0:
         raise ValueError("finish must be >= 0 (0 = did not finish)")
     payload = {"race_id": row["race_id"] or _missing("race_id"), "car": car, "finish": finish}
@@ -197,9 +199,11 @@ class Store:
         self.db = sqlite3.connect(root / "store.sqlite3")
         self.db.executescript(SCHEMA)
 
-    def latest(self, kind: str, key: str) -> tuple[int, str] | None:
+    def latest(self, kind: str, key: str) -> tuple[int, str, str, str] | None:
+        """(version, content hash, source_id, contract_id) of the newest version."""
         return self.db.execute(
-            "SELECT version, content_sha256 FROM records WHERE kind=? AND natural_key=? "
+            "SELECT version, content_sha256, source_id, contract_id FROM records "
+            "WHERE kind=? AND natural_key=? "
             "ORDER BY version DESC LIMIT 1", (kind, key)).fetchone()
 
     def records(self, kind: str | None = None) -> list[dict]:
@@ -274,7 +278,10 @@ def _ingest_one(store: Store, raw: RawObject, prov: Provenance, now: datetime) -
             body = json.dumps(payload, ensure_ascii=False, sort_keys=True)
             content_sha = hashlib.sha256(body.encode()).hexdigest()
             latest = store.latest(kind, key)
-            if latest is not None and latest[1] == content_sha:
+            # Same content from a different source or agreement is a new version: the
+            # provenance (e.g. licensed vs. synthetic) is part of what we must keep.
+            if latest is not None and latest[1:] == (content_sha, prov.source_id,
+                                                     prov.contract_id):
                 report.unchanged += 1
                 continue
             version = 1 if latest is None else latest[0] + 1

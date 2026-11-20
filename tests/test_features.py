@@ -108,3 +108,19 @@ def test_reads_from_the_etl_store(tmp_path):
     assert len(feats) == 7 and all("hist_starts" in f for f in feats.values())
     with pytest.raises(GateRejected):  # ingested an hour after this instant
         asof.card_as_of("EXAMPLE-0001", observed + timedelta(minutes=30))
+
+
+def test_withdrawal_time_is_part_of_card_provenance():
+    withdrawn_at = T - timedelta(minutes=30)
+    store = AsOfStore(base_snapshots() + [
+        snap("entry", "R#2", entry("R", 2, "架空B", 1, 2, status="withdrawn"), withdrawn_at,
+             version=2)])
+    card = store.card_as_of("R", T)
+    assert card.observed_at == withdrawn_at and card.entered_at == withdrawn_at
+
+
+def test_duplicate_line_positions_are_rejected():
+    store = AsOfStore(base_snapshots() + [
+        snap("entry", "R#2", entry("R", 2, "架空B", 1, 1), T - timedelta(hours=1), version=2)])
+    with pytest.raises(GateRejected, match="duplicate positions"):
+        store.card_as_of("R", T)

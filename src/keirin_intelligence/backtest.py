@@ -38,10 +38,12 @@ def chronological_split(
     cards: dict[str, RaceCard], results: dict[str, RaceResult], train_end: date, calib_end: date
 ) -> Split:
     """train: race_date < train_end; calibration: [train_end, calib_end); test: >= calib_end.
-    Whole races stay together; only races with a recorded finishing order are used."""
+    Whole races stay together; only races with a recorded finishing order whose card was
+    observed and entered before the betting cutoff are used."""
     if not train_end < calib_end:
         raise ValueError("train_end must be before calib_end")
-    labelled = sorted((c for r, c in cards.items() if results.get(r) and results[r].order),
+    labelled = sorted((c for r, c in cards.items() if results.get(r) and results[r].order
+                       and _known_before_cutoff(c)),
                       key=lambda c: (c.race_date, c.race_id))
     split = Split(
         [c for c in labelled if c.race_date < train_end],
@@ -52,6 +54,11 @@ def chronological_split(
         if not getattr(split, name):
             raise ValueError(f"{name} period has no labelled races")
     return split
+
+
+def _known_before_cutoff(card: RaceCard) -> bool:
+    """A card observed or entered at/after its cutoff could carry post-race information."""
+    return card.observed_at < card.betting_cutoff_at and card.entered_at < card.betting_cutoff_at
 
 
 def temper(pred: RacePrediction, temperature: float) -> RacePrediction:
@@ -83,8 +90,8 @@ def load_win_odds(path: Path, cards: dict[str, RaceCard]) -> dict[str, dict[int,
             if card is None or observed >= card.betting_cutoff_at:
                 continue
             odds = float(row["win_odds"])
-            if odds <= 0:
-                raise ValueError(f"{race_id} car {car}: win_odds must be positive")
+            if not math.isfinite(odds) or odds <= 0:
+                raise ValueError(f"{race_id} car {car}: win_odds must be a positive number")
             if (race_id, car) not in latest or observed > latest[(race_id, car)][0]:
                 latest[(race_id, car)] = (observed, odds)
     out: dict[str, dict[int, float]] = {}
@@ -171,6 +178,7 @@ def backtest(
             market_model_board.add(cal, result)
 
     unlabelled = [r for r in cards if not (results.get(r) and results[r].order)]
+    late_cards = [r for r, c in cards.items() if not _known_before_cutoff(c)]
     report = {
         "evidence": "BACKTEST",
         "periods": {"train": _period(split.train), "calibration": _period(split.calibration),
@@ -181,6 +189,7 @@ def backtest(
         "races_total": len(cards),
         "races_without_result": len(unlabelled),
         "missing_result_rate": round(len(unlabelled) / max(len(cards), 1), 4),
+        "excluded_entered_after_cutoff": len(late_cards),
         "metrics": [b.summary() for b in boards.values()],
         "calibration": calibration_table(calibrated, results).__dict__,
         "market": {
