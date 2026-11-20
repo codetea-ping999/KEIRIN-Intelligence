@@ -77,20 +77,24 @@ class AsOfStore:
         cutoff = datetime.fromisoformat(race.payload["betting_cutoff_at"])
         if t >= cutoff:
             raise GateRejected(f"{race_id}: prediction time must precede the betting cutoff")
-        rows = [s for s in self._race_rows(race_id, "entry", t)
-                if s.payload.get("status", "entered") == "entered"]
+        all_rows = self._race_rows(race_id, "entry", t)
+        rows = [s for s in all_rows if s.payload.get("status", "entered") == "entered"]
         if len(rows) < 2:
             raise GateRejected(f"{race_id}: fewer than two starters known at {t.isoformat()}")
         lines: dict[int, list[dict]] = defaultdict(list)
         for s in rows:
             lines[s.payload["line_group"]].append(s.payload)
+        for group, members in lines.items():
+            positions = [p["line_pos"] for p in members]
+            if len(set(positions)) != len(positions):
+                raise GateRejected(f"{race_id}: duplicate positions in line {group}")
         entries = []
         for group, members in lines.items():
             # A withdrawal leaves a gap in the line; the riders behind move up.
             for pos, p in enumerate(sorted(members, key=lambda p: p["line_pos"]), start=1):
                 entries.append(CardEntry(p["car"], p["name"], p["rider_class"], p["prefecture"],
                                          p["score"], p["style"], group, pos))
-        used = [race, *rows]
+        used = [race, *all_rows]  # withdrawals shape the card, so they count as inputs
         rp = race.payload
         return RaceCard(
             race_id=race_id, race_date=date.fromisoformat(rp["race_date"]), venue=rp["venue"],

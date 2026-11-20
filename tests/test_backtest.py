@@ -82,3 +82,28 @@ def test_market_baseline_uses_only_pre_cutoff_odds(tmp_path):
     assert report["market"]["test_races_with_odds"] == 1
     assert [m["model"] for m in report["market"]["metrics"]] == [
         "market", "M1_calibrated_on_market_races"]
+
+
+def test_cards_entered_after_cutoff_are_excluded_and_counted():
+    from dataclasses import replace
+
+    cards = dict(CARDS)
+    late = cards["SYN-00470"]
+    cards[late.race_id] = replace(late, entered_at=late.betting_cutoff_at + timedelta(hours=1))
+    split = chronological_split(cards, RESULTS, TRAIN_END, CALIB_END)
+    assert late.race_id not in {c.race_id for c in split.test}
+    report = backtest(cards, RESULTS, train_end=TRAIN_END, calib_end=CALIB_END,
+                      fit_kwargs={"iterations": 5})
+    assert report["excluded_entered_after_cutoff"] == 1
+    calibrated = next(m for m in report["metrics"] if m["model"] == "M1_calibrated")
+    assert calibrated["exacta_top1_hit"] is None  # no joint distribution, not a 0% hit rate
+
+
+def test_non_finite_odds_are_rejected(tmp_path):
+    card = CARDS["SYN-00470"]
+    before = (card.betting_cutoff_at - timedelta(minutes=5)).isoformat()
+    path = tmp_path / "odds.csv"
+    path.write_text(f"race_id,car,win_odds,observed_at\n{card.race_id},1,nan,{before}\n",
+                    encoding="utf-8")
+    with pytest.raises(ValueError, match="positive number"):
+        load_win_odds(path, CARDS)

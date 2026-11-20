@@ -97,3 +97,25 @@ def test_rate_limiter_spaces_calls():
     clock[0] += 0.5
     limiter.wait()
     assert slept == [1.5]
+
+
+def test_identical_rows_from_a_licensed_source_keep_their_provenance(env, tmp_path):
+    store, gate, _ = env
+    rows = "race_id,car,finish\nR1,1,1\n"
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "results.csv").write_text(rows, encoding="utf-8")
+    ingest(adapter([tmp_path / "a" / "results.csv"], "SYNTHETIC", ""), store, gate, now=NOW,
+           purpose=Purpose.RESEARCH)
+    [report] = ingest(adapter([tmp_path / "a" / "results.csv"]), store, gate,
+                      now=NOW + timedelta(hours=1))
+    assert report.changed == 1
+    assert [r["source_id"] for r in store.records("result")] == ["SYNTHETIC", "licensed.example"]
+
+
+def test_results_without_finish_column_are_quarantined(env, tmp_path):
+    store, gate, _ = env
+    bad = tmp_path / "results.csv"
+    bad.write_text("race_id,car,rank\nR1,1,1\n", encoding="utf-8")
+    [report] = ingest(adapter([bad]), store, gate, now=NOW)
+    assert (report.inserted, report.quarantined) == (0, 1)
+    assert "finish column missing" in report.reasons[0]
