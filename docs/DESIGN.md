@@ -9,7 +9,7 @@ One licensed race class / subset, initially 1st-place race-normalized scores and
 ## Data pipeline
 Licensed provider -> provenance checks (source, observed_at, ingested_at) -> raw immutable snapshot -> PostgreSQL models and feature history -> versioned model -> pre-race prediction -> frozen artifact hash -> human-reviewed report -> result settlement -> disclosure dashboards.
 
-Tables: data_sources, riders, velodromes, races, race_entries, entry_snapshots, line_snapshots, weather_snapshots, odds_snapshots, race_results, race_payouts, model_versions, prediction_runs, rider_predictions, ticket_predictions, prediction_evaluations and publications. Consult db/schema.sql; it is a blueprint, not a deployed migration.
+Tables: data_sources, riders, velodromes, races, race_entries, entry_snapshots, line_snapshots, weather_snapshots, odds_snapshots, race_results, race_payouts, model_versions, prediction_runs, rider_predictions, ticket_predictions, prediction_evaluations and publications. The schema is built by the versioned migrations in db/migrations (`keirin-db upgrade`); see docs/DATA_DICTIONARY.md.
 
 ## Model path
 - M0 uniform and rating-softmax baseline (uncalibrated synthetic-only demonstration exists).

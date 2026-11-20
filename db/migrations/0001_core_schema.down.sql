@@ -1,0 +1,20 @@
+-- 0001 rollback: drops every table of the core schema.
+DROP TABLE IF EXISTS prediction_evaluations;
+DROP TABLE IF EXISTS publications;
+DROP TABLE IF EXISTS ticket_predictions;
+DROP TABLE IF EXISTS rider_predictions;
+DROP TABLE IF EXISTS prediction_runs;
+DROP TABLE IF EXISTS model_versions;
+DROP TABLE IF EXISTS race_payouts;
+DROP TABLE IF EXISTS race_results;
+DROP TABLE IF EXISTS odds_snapshots;
+DROP TABLE IF EXISTS weather_snapshots;
+DROP TABLE IF EXISTS line_members;
+DROP TABLE IF EXISTS line_snapshots;
+DROP TABLE IF EXISTS entry_snapshots;
+DROP TABLE IF EXISTS race_entries;
+DROP TABLE IF EXISTS races;
+DROP TABLE IF EXISTS riders;
+DROP TABLE IF EXISTS velodromes;
+DROP TABLE IF EXISTS ingestion_batches;
+DROP TABLE IF EXISTS data_sources;
